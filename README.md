@@ -1,0 +1,2 @@
+# rssfilter
+rss news reader
