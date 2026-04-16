@@ -59,7 +59,6 @@
                 <h1 class="text-xl font-bold tracking-tight">RSS Filter</h1>
             </div>
             
-            <!-- 인라인 onsubmit을 제거하고 JS로 이벤트 연결 -->
             <form id="topic-form" class="relative">
                 <input
                     type="text"
@@ -151,7 +150,6 @@
                 <div class="absolute left-1/2 top-0 bottom-0 w-[1px] bg-black/10 z-10"></div>
 
                 <!-- 왼쪽 페이지 -->
-                <!-- 상하 여백을 약간 줄여(py-12 md:py-14) 텍스트가 잘리지 않게 방지 -->
                 <div class="flex-1 px-10 py-12 md:px-14 md:py-14 relative overflow-hidden bg-[#fdfcf8] page-transition flex flex-col" id="page-left">
                     <!-- 내용 -->
                 </div>
@@ -172,6 +170,12 @@
     </div>
 
     <script>
+        // ==========================================
+        // 제공해주신 API 키를 직접 삽입했습니다.
+        // ==========================================
+        const apiKey = "AIzaSyCtw5K-N7DdI-MaQJ9RFC9P1W2pZ9dq53Y"; 
+        // ==========================================
+
         const state = {
             topics: ['인공지능', '한국 경제', '우주 과학'],
             activeTopic: null,
@@ -182,8 +186,6 @@
             currentPage: 0
         };
 
-        const apiKey = ""; 
-        
         async function fetchRSSNews(topic) {
             try {
                 const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(topic)}&hl=ko&gl=KR&ceid=KR:ko`;
@@ -229,7 +231,12 @@
         }
 
         async function generateAIArticle(article) {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            if (!apiKey) {
+                alert("API 키가 설정되지 않았습니다.");
+                return { content: "오류: API 키 누락.", image: null };
+            }
+
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
             
             const promptText = `
                 주제: ${article.sourceTopic}
@@ -245,17 +252,8 @@
 
             const payload = {
                 contents: [{ parts: [{ text: promptText }] }],
-                tools: [{ google_search: {} }],
                 generationConfig: {
                     responseMimeType: "application/json",
-                    responseSchema: {
-                        type: "OBJECT",
-                        properties: {
-                            content: { type: "STRING" },
-                            image: { type: "STRING" }
-                        },
-                        required: ["content"]
-                    }
                 }
             };
 
@@ -267,18 +265,26 @@
                         body: JSON.stringify(payload)
                     });
                     
+                    if (!response.ok) {
+                        console.error("API 응답 에러:", response.status, response.statusText);
+                        throw new Error("API 연동 오류");
+                    }
+
                     const data = await response.json();
                     
                     if (data.candidates && data.candidates[0].content.parts[0].text) {
                         const result = JSON.parse(data.candidates[0].content.parts[0].text);
-                        return result;
+                        return {
+                            content: result.content || result.text || result.article || "내용을 불러오지 못했습니다.",
+                            image: result.image || null
+                        };
                     }
                 } catch (e) {
                     console.error("AI Generation Error:", e);
-                    await new Promise(r => setTimeout(r, 1000));
+                    await new Promise(r => setTimeout(r, 1500)); 
                 }
             }
-            return { content: "AI가 본문을 생성하는 데 실패했습니다. 잠시 후 다시 시도해주세요.", image: null };
+            return { content: "AI가 본문을 생성하는 데 실패했습니다. API 키 문제이거나 할당량 초과일 수 있습니다.", image: null };
         }
 
         function getFilteredArticles(topic) {
@@ -428,7 +434,6 @@
             
             let currentContent = '';
             let currentLength = 0;
-            // 텍스트가 잘리는 현상 방지: 글자 수를 550자로 제한하여 공간을 여유있게 유지
             const MAX_CHARS_PER_PAGE = 550; 
 
             paragraphs.forEach((p) => {
@@ -527,11 +532,10 @@
             renderSidebar();
         }
 
-        // --- 명시적 이벤트 리스너 연결 ---
         function initEvents() {
             const topicForm = document.getElementById('topic-form');
             topicForm.addEventListener('submit', (e) => {
-                e.preventDefault(); // 기본 새로고침 방지 (엔터 키 입력 시 동작)
+                e.preventDefault(); 
                 const input = document.getElementById('new-topic-input');
                 const topic = input.value.trim();
                 if (topic && !state.topics.includes(topic)) {
