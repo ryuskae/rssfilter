@@ -1,0 +1,581 @@
+```html
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSS Filter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+        
+        .ebook-font { 
+            font-family: 'Noto Serif KR', serif; 
+        }
+        
+        /* 표준 전자책 스타일 본문 */
+        .ebook-content {
+            text-align: justify;
+            word-break: keep-all;
+            line-height: 1.8;
+            letter-spacing: -0.03em;
+            color: #2c2c2c;
+            font-size: 1.05rem;
+            display: block; 
+        }
+
+        .ebook-content p {
+            margin-bottom: 1.2em; /* 문단 간격 */
+            text-indent: 1em; /* 실제 책과 같은 들여쓰기 */
+        }
+
+        .page-transition {
+            transition: opacity 0.2s ease-in-out;
+        }
+
+        /* 책 가운데 제본선 음영 */
+        .book-spine {
+            background: linear-gradient(to right, 
+                rgba(255,255,255,0) 0%, 
+                rgba(0,0,0,0.02) 20%, 
+                rgba(0,0,0,0.06) 50%, 
+                rgba(0,0,0,0.02) 80%, 
+                rgba(255,255,255,0) 100%);
+        }
+    </style>
+</head>
+<body class="bg-[#f0ece3] text-gray-900 font-sans overflow-hidden flex h-screen">
+
+    <!-- 사이드바 -->
+    <div class="w-[280px] bg-white border-r border-gray-200 flex flex-col shadow-lg z-20 shrink-0">
+        <div class="p-6 border-b border-gray-100 bg-slate-800 text-white">
+            <div class="flex items-center gap-3 mb-5">
+                <i class="fa-solid fa-filter text-xl text-blue-400"></i>
+                <h1 class="text-xl font-bold tracking-tight">RSS Filter</h1>
+            </div>
+            
+            <!-- 인라인 onsubmit을 제거하고 JS로 이벤트 연결 -->
+            <form id="topic-form" class="relative">
+                <input
+                    type="text"
+                    id="new-topic-input"
+                    placeholder="주제 추가 (예: 우주, AI)"
+                    class="w-full pl-10 pr-4 py-2 bg-slate-700 text-white placeholder-slate-400 border border-slate-600 rounded focus:outline-none focus:ring-1 focus:ring-blue-400 text-sm transition-shadow"
+                />
+                <i class="fa-solid fa-search absolute left-3.5 top-2.5 text-slate-400 text-sm"></i>
+                <button type="submit" class="absolute right-1.5 top-1.5 text-white p-1 px-1.5 bg-blue-500 rounded hover:bg-blue-400 transition">
+                    <i class="fa-solid fa-plus text-xs"></i>
+                </button>
+            </form>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-5">
+            <h2 class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Topics</h2>
+            <ul id="topic-list" class="space-y-1">
+                <!-- 주제 렌더링 영역 -->
+            </ul>
+
+            <hr class="my-6 border-slate-100" />
+
+            <h2 class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                <i class="fa-solid fa-ban text-red-400"></i> Banned Words
+            </h2>
+            <form id="banned-form" class="mb-3 flex gap-2">
+                <input
+                    type="text"
+                    id="new-banned-input"
+                    placeholder="금지어..."
+                    class="flex-1 px-3 py-1.5 text-sm border border-slate-200 rounded focus:outline-none focus:border-slate-400"
+                />
+                <button type="submit" class="px-3 py-1.5 bg-slate-100 text-slate-600 rounded hover:bg-slate-200 transition">
+                    <i class="fa-solid fa-plus text-sm"></i>
+                </button>
+            </form>
+            <div id="banned-list" class="flex flex-wrap gap-1.5">
+                <!-- 금지어 렌더링 영역 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 메인 화면 -->
+    <div class="flex-1 flex flex-col relative bg-[#f9f8f6]">
+        
+        <div id="loading-overlay" class="absolute inset-0 bg-white/70 backdrop-blur-sm z-30 flex flex-col items-center justify-center hidden">
+            <i class="fa-solid fa-circle-notch fa-spin text-4xl text-slate-800 mb-4"></i>
+            <p id="loading-text" class="text-base font-medium text-slate-700">목록을 불러오는 중...</p>
+        </div>
+
+        <!-- 환영 화면 -->
+        <div id="welcome-view" class="flex-1 flex flex-col items-center justify-center p-8 bg-transparent">
+            <i class="fa-solid fa-rss text-6xl text-slate-300 mb-6"></i>
+            <h2 class="text-2xl font-bold text-slate-700 mb-2 font-serif">RSS Filter에 오신 것을 환영합니다</h2>
+            <p class="text-slate-500 text-center max-w-md text-sm mt-2">
+                주제를 선택하거나 새롭게 추가(엔터 키 입력)하여 RSS 피드를 확인하세요.<br>
+                기사를 클릭하면 AI가 상세한 전자책을 만들어 줍니다.
+            </p>
+        </div>
+
+        <!-- 기사 목록 (RSS 피드) -->
+        <div id="feed-view" class="flex-1 p-8 md:p-12 overflow-y-auto flex-col hidden">
+            <div class="max-w-4xl mx-auto w-full">
+                <div class="flex items-end justify-between mb-8 border-b-2 border-slate-800 pb-4">
+                    <div>
+                        <h2 id="current-topic-title" class="text-4xl font-bold text-slate-900 font-serif tracking-tight">주제</h2>
+                        <p id="feed-stats" class="text-slate-500 mt-3 text-sm">0 articles found</p>
+                    </div>
+                </div>
+                <div id="articles-list" class="flex flex-col gap-4"></div>
+            </div>
+        </div>
+
+        <!-- 전자책 뷰어 -->
+        <div id="ebook-view" class="flex-1 flex-col items-center justify-center p-4 md:p-8 relative hidden bg-[#e8e5df]">
+            
+            <div class="absolute top-4 left-8 right-8 flex justify-between items-center z-10">
+                <button onclick="closeArticle()" class="flex items-center gap-2 px-4 py-2 bg-white/90 shadow-sm border border-slate-200 rounded text-sm font-medium text-slate-700 hover:bg-white transition">
+                    <i class="fa-solid fa-arrow-left"></i> 목록으로
+                </button>
+                <div id="page-indicator" class="px-4 py-2 bg-white/90 shadow-sm border border-slate-200 rounded text-sm font-medium text-slate-500 tracking-widest">
+                    1 / 1
+                </div>
+            </div>
+
+            <!-- 책 레이아웃 -->
+            <div class="relative w-full max-w-[1000px] h-[86vh] bg-[#fdfcf8] rounded-sm shadow-2xl flex border border-slate-300 overflow-hidden">
+                <div class="absolute left-1/2 top-0 bottom-0 w-12 -ml-6 book-spine z-10 pointer-events-none"></div>
+                <div class="absolute left-1/2 top-0 bottom-0 w-[1px] bg-black/10 z-10"></div>
+
+                <!-- 왼쪽 페이지 -->
+                <!-- 상하 여백을 약간 줄여(py-12 md:py-14) 텍스트가 잘리지 않게 방지 -->
+                <div class="flex-1 px-10 py-12 md:px-14 md:py-14 relative overflow-hidden bg-[#fdfcf8] page-transition flex flex-col" id="page-left">
+                    <!-- 내용 -->
+                </div>
+
+                <!-- 오른쪽 페이지 -->
+                <div class="flex-1 px-10 py-12 md:px-14 md:py-14 relative overflow-hidden bg-[#fdfcf8] page-transition flex flex-col" id="page-right">
+                    <!-- 내용 -->
+                </div>
+
+                <button id="prev-btn" onclick="prevPage()" class="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center rounded-full bg-white border border-slate-200 shadow-md text-slate-600 hover:text-slate-900 transition-all z-20 disabled:opacity-0 disabled:cursor-default">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                <button id="next-btn" onclick="nextPage()" class="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center rounded-full bg-white border border-slate-200 shadow-md text-slate-600 hover:text-slate-900 transition-all z-20 disabled:opacity-0 disabled:cursor-default">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const state = {
+            topics: ['인공지능', '한국 경제', '우주 과학'],
+            activeTopic: null,
+            bannedWords: ['광고', '단독', '충격', '속보', '특가'],
+            articlesData: {}, 
+            aiArticlesCache: {}, 
+            selectedArticle: null,
+            currentPage: 0
+        };
+
+        const apiKey = ""; 
+        
+        async function fetchRSSNews(topic) {
+            try {
+                const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(topic)}&hl=ko&gl=KR&ceid=KR:ko`;
+                const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`;
+                
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+                
+                if (data.status === 'ok') {
+                    return data.items.map(item => {
+                        return {
+                            id: item.guid || item.link,
+                            title: item.title,
+                            date: item.pubDate,
+                            link: item.link,
+                            sourceTopic: topic
+                        };
+                    });
+                }
+                return [];
+            } catch (error) {
+                console.error("RSS Error:", error);
+                return [];
+            }
+        }
+
+        async function loadTopicData(topic) {
+            state.activeTopic = topic;
+            closeArticle();
+            
+            document.getElementById('welcome-view').classList.add('hidden');
+            document.getElementById('feed-view').classList.remove('hidden');
+            document.getElementById('feed-view').classList.add('flex');
+            
+            if (!state.articlesData[topic]) {
+                showLoading(true, "RSS 피드 업데이트 중...");
+                const newArticles = await fetchRSSNews(topic);
+                state.articlesData[topic] = newArticles;
+                showLoading(false);
+            }
+            
+            renderAll();
+        }
+
+        async function generateAIArticle(article) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            
+            const promptText = `
+                주제: ${article.sourceTopic}
+                기사 제목: ${article.title}
+                
+                위 제목과 관련된 상세한 뉴스 기사를 작성해주세요. 
+                전자책 뷰어에 들어갈 내용이므로, 짧은 요약이 아니라 배경, 현황, 세부 내용, 전망 등을 포함하여 **최소 1500자 이상의 매우 길고 논리적인 글**로 작성해야 합니다.
+                문단(paragraph) 구분을 명확히 해주세요.
+                
+                응답은 반드시 아래 JSON 스키마를 따르세요. 
+                image 속성에는 이 기사와 어울리는 고해상도 사진 URL을 하나 찾아 넣어주세요 (구글 검색 활용, 없으면 null).
+            `;
+
+            const payload = {
+                contents: [{ parts: [{ text: promptText }] }],
+                tools: [{ google_search: {} }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            content: { type: "STRING" },
+                            image: { type: "STRING" }
+                        },
+                        required: ["content"]
+                    }
+                }
+            };
+
+            for (let attempt = 0; attempt < 3; attempt++) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.candidates && data.candidates[0].content.parts[0].text) {
+                        const result = JSON.parse(data.candidates[0].content.parts[0].text);
+                        return result;
+                    }
+                } catch (e) {
+                    console.error("AI Generation Error:", e);
+                    await new Promise(r => setTimeout(r, 1000));
+                }
+            }
+            return { content: "AI가 본문을 생성하는 데 실패했습니다. 잠시 후 다시 시도해주세요.", image: null };
+        }
+
+        function getFilteredArticles(topic) {
+            const raw = state.articlesData[topic] || [];
+            const visible = raw.filter(a => !state.bannedWords.some(w => a.title.includes(w)));
+            return { visible, blockedCount: raw.length - visible.length };
+        }
+
+        function renderAll() {
+            renderSidebar();
+            if (state.activeTopic && !state.selectedArticle) {
+                renderFeed();
+            }
+        }
+
+        function renderSidebar() {
+            const topicList = document.getElementById('topic-list');
+            topicList.innerHTML = '';
+            
+            state.topics.forEach(topic => {
+                const isLoaded = !!state.articlesData[topic];
+                let blockedBadge = '';
+                
+                if (isLoaded) {
+                    const filtered = getFilteredArticles(topic);
+                    if (filtered.blockedCount > 0) {
+                        blockedBadge = `<span class="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold bg-slate-200 text-slate-500 rounded">-${filtered.blockedCount}</span>`;
+                    }
+                }
+
+                const isActive = state.activeTopic === topic && !state.selectedArticle;
+                const baseClasses = "w-full text-left px-3 py-2 rounded flex items-center justify-between transition-colors text-sm font-medium";
+                const activeClasses = isActive ? "bg-slate-100 text-slate-800 font-bold" : "text-slate-600 hover:bg-slate-50";
+                
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <button onclick="loadTopicData('${topic}')" class="${baseClasses} ${activeClasses}">
+                        <span class="truncate">${topic}</span>
+                        ${blockedBadge}
+                    </button>
+                `;
+                topicList.appendChild(li);
+            });
+
+            const bannedList = document.getElementById('banned-list');
+            bannedList.innerHTML = '';
+            
+            state.bannedWords.forEach(word => {
+                const span = document.createElement('span');
+                span.className = "inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-slate-100 text-slate-500 border border-slate-200";
+                span.innerHTML = `
+                    ${word}
+                    <button onclick="removeBannedWord('${word}')" class="text-slate-400 hover:text-red-400 transition-colors focus:outline-none">
+                        <i class="fa-solid fa-xmark text-[10px]"></i>
+                    </button>
+                `;
+                bannedList.appendChild(span);
+            });
+        }
+
+        function renderFeed() {
+            const { visible, blockedCount } = getFilteredArticles(state.activeTopic);
+            
+            document.getElementById('current-topic-title').innerText = state.activeTopic;
+            
+            let statsHtml = `${visible.length} articles found`;
+            if (blockedCount > 0) {
+                statsHtml += ` <span class="ml-2 text-slate-400 font-normal">| ${blockedCount} filtered by banned words</span>`;
+            }
+            document.getElementById('feed-stats').innerHTML = statsHtml;
+
+            const listContainer = document.getElementById('articles-list');
+            listContainer.innerHTML = '';
+
+            if (visible.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="py-20 text-center text-slate-400">
+                        <p class="text-lg">기사를 찾을 수 없습니다.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            visible.forEach(article => {
+                const item = document.createElement('div');
+                item.className = "bg-white border border-slate-200 p-5 hover:shadow-md cursor-pointer transition-all flex flex-col group rounded-sm";
+                item.onclick = () => openArticle(article.id);
+                
+                const dateObj = new Date(article.date);
+                const dateStr = isNaN(dateObj) ? '' : dateObj.toLocaleDateString();
+
+                item.innerHTML = `
+                    <div class="flex justify-between items-start gap-4">
+                        <h3 class="text-lg font-bold text-slate-800 group-hover:text-blue-600 transition-colors leading-tight flex-1">
+                            ${article.title.split(' - ')[0]} 
+                        </h3>
+                        <span class="text-xs text-slate-400 whitespace-nowrap mt-1 font-mono">${dateStr}</span>
+                    </div>
+                    <div class="mt-4 flex items-center gap-2 text-xs font-bold text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <i class="fa-solid fa-book-open"></i> Read Article
+                    </div>
+                `;
+                listContainer.appendChild(item);
+            });
+        }
+
+        async function openArticle(articleId) {
+            const raw = state.articlesData[state.activeTopic] || [];
+            const articleInfo = raw.find(a => a.id === articleId);
+            
+            if (!articleInfo) return;
+            state.selectedArticle = articleInfo;
+
+            document.getElementById('welcome-view').classList.add('hidden');
+            document.getElementById('feed-view').classList.add('hidden');
+            document.getElementById('feed-view').classList.remove('flex');
+            
+            if (!state.aiArticlesCache[articleId]) {
+                showLoading(true, "AI가 기사 본문을 작성 중입니다...");
+                const aiResult = await generateAIArticle(articleInfo);
+                state.aiArticlesCache[articleId] = createBookPages(articleInfo, aiResult);
+                showLoading(false);
+            }
+
+            document.getElementById('ebook-view').classList.remove('hidden');
+            document.getElementById('ebook-view').classList.add('flex');
+
+            state.currentPage = 0;
+            renderBookPage();
+        }
+
+        function createBookPages(articleInfo, aiResult) {
+            const pages = [];
+            
+            let page1 = `
+                <div class="flex flex-col h-full ebook-font justify-center">
+                    <h1 class="text-3xl font-bold leading-snug mb-6 text-slate-900 break-keep">${articleInfo.title.split(' - ')[0]}</h1>
+                    <div class="w-12 h-1 bg-slate-800 mb-8"></div>
+            `;
+            if (aiResult.image) {
+                page1 += `<img src="${aiResult.image}" class="w-full h-auto max-h-[300px] object-cover filter grayscale hover:grayscale-0 transition duration-700 rounded-sm mb-6" onerror="this.style.display='none'">`;
+            }
+            page1 += `</div>`;
+            pages.push(page1);
+
+            const paragraphs = aiResult.content.split('\n').filter(p => p.trim().length > 0);
+            
+            let currentContent = '';
+            let currentLength = 0;
+            // 텍스트가 잘리는 현상 방지: 글자 수를 550자로 제한하여 공간을 여유있게 유지
+            const MAX_CHARS_PER_PAGE = 550; 
+
+            paragraphs.forEach((p) => {
+                if (currentLength + p.length > MAX_CHARS_PER_PAGE && currentContent.length > 0) {
+                    pages.push(`
+                        <div class="ebook-font ebook-content">
+                            ${currentContent}
+                        </div>
+                    `);
+                    currentContent = '';
+                    currentLength = 0;
+                }
+                currentContent += `<p>${p}</p>`;
+                currentLength += p.length;
+            });
+
+            if (currentContent.length > 0) {
+                pages.push(`
+                    <div class="ebook-font ebook-content">
+                        ${currentContent}
+                    </div>
+                `);
+            }
+
+            if (pages.length % 2 !== 0) {
+                pages.push(`<div class="h-full flex flex-col justify-center items-center text-slate-300 italic ebook-font text-sm">The End</div>`);
+            } else {
+                pages.push(`<div class="h-full flex flex-col justify-center items-center text-slate-300 italic ebook-font text-sm">The End</div>`);
+                pages.push(`<div class="h-full"></div>`); // 빈 페이지
+            }
+
+            return pages;
+        }
+
+        function renderBookPage() {
+            const cache = state.aiArticlesCache[state.selectedArticle.id];
+            const pages = cache;
+
+            const leftPage = document.getElementById('page-left');
+            const rightPage = document.getElementById('page-right');
+            
+            leftPage.style.opacity = 0;
+            rightPage.style.opacity = 0;
+
+            setTimeout(() => {
+                leftPage.innerHTML = pages[state.currentPage] || '';
+                rightPage.innerHTML = pages[state.currentPage + 1] || '';
+
+                if (pages[state.currentPage] && !pages[state.currentPage].includes('justify-center')) {
+                    leftPage.innerHTML += `<div class="absolute bottom-6 left-0 right-0 text-center text-[10px] text-slate-400 font-sans tracking-widest">${state.currentPage + 1}</div>`;
+                }
+                if (pages[state.currentPage + 1] && !pages[state.currentPage + 1].includes('justify-center') && !pages[state.currentPage + 1].includes('빈 페이지') && pages[state.currentPage+1].trim() !== '<div class="h-full"></div>') {
+                    rightPage.innerHTML += `<div class="absolute bottom-6 left-0 right-0 text-center text-[10px] text-slate-400 font-sans tracking-widest">${state.currentPage + 2}</div>`;
+                }
+
+                const totalFolds = Math.ceil(pages.length / 2);
+                const currentFold = Math.floor(state.currentPage / 2) + 1;
+                document.getElementById('page-indicator').innerText = `${currentFold} / ${totalFolds}`;
+
+                const prevBtn = document.getElementById('prev-btn');
+                const nextBtn = document.getElementById('next-btn');
+
+                prevBtn.disabled = state.currentPage === 0;
+                nextBtn.disabled = state.currentPage >= pages.length - 2;
+
+                leftPage.style.opacity = 1;
+                rightPage.style.opacity = 1;
+            }, 150);
+        }
+
+        function prevPage() {
+            if (state.currentPage > 0) {
+                state.currentPage -= 2;
+                renderBookPage();
+            }
+        }
+
+        function nextPage() {
+            const cache = state.aiArticlesCache[state.selectedArticle.id];
+            if (state.currentPage < cache.length - 2) {
+                state.currentPage += 2;
+                renderBookPage();
+            }
+        }
+
+        function closeArticle() {
+            state.selectedArticle = null;
+            if (state.activeTopic) {
+                document.getElementById('feed-view').classList.remove('hidden');
+                document.getElementById('feed-view').classList.add('flex');
+            } else {
+                document.getElementById('welcome-view').classList.remove('hidden');
+            }
+            document.getElementById('ebook-view').classList.add('hidden');
+            document.getElementById('ebook-view').classList.remove('flex');
+            renderSidebar();
+        }
+
+        // --- 명시적 이벤트 리스너 연결 ---
+        function initEvents() {
+            const topicForm = document.getElementById('topic-form');
+            topicForm.addEventListener('submit', (e) => {
+                e.preventDefault(); // 기본 새로고침 방지 (엔터 키 입력 시 동작)
+                const input = document.getElementById('new-topic-input');
+                const topic = input.value.trim();
+                if (topic && !state.topics.includes(topic)) {
+                    state.topics.push(topic);
+                    input.value = '';
+                    renderAll(); 
+                }
+            });
+
+            const bannedForm = document.getElementById('banned-form');
+            bannedForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const input = document.getElementById('new-banned-input');
+                const word = input.value.trim();
+                if (word && !state.bannedWords.includes(word)) {
+                    state.bannedWords.push(word);
+                    input.value = '';
+                    renderAll();
+                }
+            });
+        }
+
+        function removeBannedWord(word) {
+            state.bannedWords = state.bannedWords.filter(w => w !== word);
+            renderAll();
+        }
+
+        function showLoading(show, text = "로딩 중...") {
+            const overlay = document.getElementById('loading-overlay');
+            if (show) {
+                document.getElementById('loading-text').innerText = text;
+                overlay.classList.remove('hidden');
+            } else {
+                overlay.classList.add('hidden');
+            }
+        }
+
+        window.onload = () => {
+            initEvents();
+            renderSidebar();
+        };
+    </script>
+</body>
+</html>
+
+
+```
