@@ -1,4 +1,4 @@
-```html
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -18,7 +18,6 @@
             font-family: 'Noto Serif KR', serif; 
         }
         
-        /* 표준 전자책 스타일 본문 */
         .ebook-content {
             text-align: justify;
             word-break: keep-all;
@@ -30,15 +29,14 @@
         }
 
         .ebook-content p {
-            margin-bottom: 1.2em; /* 문단 간격 */
-            text-indent: 1em; /* 실제 책과 같은 들여쓰기 */
+            margin-bottom: 1.2em;
+            text-indent: 1em;
         }
 
         .page-transition {
             transition: opacity 0.2s ease-in-out;
         }
 
-        /* 책 가운데 제본선 음영 */
         .book-spine {
             background: linear-gradient(to right, 
                 rgba(255,255,255,0) 0%, 
@@ -168,7 +166,7 @@
 
     <script>
         // ==========================================
-        // 새롭게 제공해주신 API 키 적용
+        // 알려주신 API 키
         // ==========================================
         window.apiKey = "AIzaSyBjk8jGoKEV9nisbqP1PoJ7KUOVuTEp7fY"; 
         // ==========================================
@@ -257,14 +255,15 @@
             renderAll();
         };
 
-        // --- 🛠️ AI 응답 강제 추출(Fallback) 기능이 탑재된 생성 함수 ---
+        // --- 🛠️ 최신 모델인 gemini-2.5-flash 로 완벽 교체 ---
         window.generateAIArticle = async function(article) {
             if (!window.apiKey) {
                 alert("API 키가 설정되지 않았습니다.");
                 return { content: "오류: API 키 누락.", image: null };
             }
 
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${window.apiKey}`;
+            // 모델명을 가장 최신 버전인 gemini-2.5-flash로 수정했습니다.
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${window.apiKey}`;
             
             const promptText = `
                 주제: ${article.sourceTopic}
@@ -282,8 +281,7 @@
             `;
 
             const payload = {
-                contents: [{ parts: [{ text: promptText }] }],
-                // JSON 구조를 강제하지 않고 자연어 처리에 맡김 (에러 원천 차단)
+                contents: [{ parts: [{ text: promptText }] }]
             };
 
             let lastErrorMessage = "";
@@ -309,7 +307,6 @@
                         let extractedContent = rawText;
                         let extractedImage = null;
 
-                        // 💡 방어 로직: AI가 어떻게 답변하든 강제로 텍스트를 추출
                         try {
                             const jsonStart = rawText.indexOf('{');
                             const jsonEnd = rawText.lastIndexOf('}');
@@ -322,7 +319,6 @@
                             }
                         } catch (parseError) {
                             console.warn("JSON 파싱 실패, 원본 텍스트를 그대로 사용합니다.", parseError);
-                            // JSON 변환에 실패하면 그냥 AI가 준 텍스트 전체를 본문으로 사용 (에러 방지)
                             extractedContent = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
                         }
                         
@@ -338,7 +334,6 @@
                 }
             }
             
-            // 모든 재시도 실패 시
             alert(`기사를 생성할 수 없습니다.\n\n원인: ${lastErrorMessage}\n\n키 값이 만료되었거나 지원하지 않는 지역일 수 있습니다.`);
             return { content: `에러로 인해 문서를 생성할 수 없습니다.\n원인: ${lastErrorMessage}`, image: null };
         };
@@ -639,6 +634,3 @@
     </script>
 </body>
 </html>
-
-
-```
