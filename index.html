@@ -1,4 +1,4 @@
-
+```html
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -96,6 +96,28 @@
             <div id="banned-list" class="flex flex-wrap gap-1.5">
                 <!-- 금지어 렌더링 영역 -->
             </div>
+
+            <!-- API 키 설정 영역 추가 (이것이 핵심입니다!) -->
+            <hr class="my-6 border-slate-100" />
+            
+            <h2 class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                <i class="fa-solid fa-key text-yellow-500"></i> API Settings
+            </h2>
+            <div class="mb-2">
+                <!-- type을 password로 해서 화면에서도 키가 안 보이게 보호 -->
+                <input
+                    type="password"
+                    id="api-key-input"
+                    placeholder="Gemini API Key 입력"
+                    class="w-full px-3 py-1.5 text-sm border border-slate-200 rounded focus:outline-none focus:border-slate-400 mb-2"
+                />
+                <button onclick="window.saveApiKey()" class="w-full px-3 py-1.5 bg-slate-800 text-white text-sm rounded hover:bg-slate-700 transition">
+                    키 저장하기
+                </button>
+            </div>
+            <p class="text-[10px] text-slate-400 leading-tight">
+                발급받은 키를 입력하세요. 이 키는 사용자 기기의 브라우저에만 안전하게 보관되며 서버로 전송되지 않습니다.
+            </p>
         </div>
     </div>
 
@@ -111,10 +133,16 @@
         <div id="welcome-view" class="flex-1 flex flex-col items-center justify-center p-8 bg-transparent">
             <i class="fa-solid fa-rss text-6xl text-slate-300 mb-6"></i>
             <h2 class="text-2xl font-bold text-slate-700 mb-2 font-serif">RSS Filter에 오신 것을 환영합니다</h2>
-            <p class="text-slate-500 text-center max-w-md text-sm mt-2">
+            <p class="text-slate-500 text-center max-w-md text-sm mt-2 mb-6">
                 주제를 선택하거나 새롭게 추가(엔터 키 입력)하여 RSS 피드를 확인하세요.<br>
                 기사를 클릭하면 AI가 상세한 전자책을 만들어 줍니다.
             </p>
+            
+            <!-- API 키가 없는 사용자를 위한 안내 박스 -->
+            <div id="api-warning-box" class="hidden bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded text-sm max-w-md w-full">
+                <p class="font-bold flex items-center gap-2 mb-1"><i class="fa-solid fa-triangle-exclamation"></i> API 키가 설정되지 않았습니다.</p>
+                <p>AI 전자책 기능을 사용하려면 좌측 하단 <b>API Settings</b>에 Gemini API 키를 입력해 주세요.</p>
+            </div>
         </div>
 
         <!-- 기사 목록 (RSS 피드) -->
@@ -165,11 +193,8 @@
     </div>
 
     <script>
-        // ==========================================
-        // 알려주신 API 키
-        // ==========================================
-        window.apiKey = "AIzaSyBjk8jGoKEV9nisbqP1PoJ7KUOVuTEp7fY"; 
-        // ==========================================
+        // 코드 내부에는 더 이상 API 키를 적지 않습니다! 
+        // 오직 사용자의 브라우저 로컬 저장소에서만 꺼내서 씁니다.
 
         window.state = {
             topics: ['인공지능', '한국 경제', '우주 과학'],
@@ -181,7 +206,35 @@
             currentPage: 0
         };
 
-        // --- 💾 브라우저 로컬 저장소 연동 ---
+        // --- 🔑 API 키 관리 기능 ---
+        window.saveApiKey = function() {
+            const keyInput = document.getElementById('api-key-input').value.trim();
+            if (keyInput) {
+                localStorage.setItem('geminiApiKey', keyInput);
+                alert('API 키가 안전하게 저장되었습니다!\n이제 기사를 클릭하여 AI 전자책 기능을 사용할 수 있습니다.');
+                checkApiKeyWarning();
+            } else {
+                localStorage.removeItem('geminiApiKey');
+                alert('API 키가 삭제되었습니다.');
+                checkApiKeyWarning();
+            }
+        };
+
+        function getApiKey() {
+            return localStorage.getItem('geminiApiKey') || "";
+        }
+
+        function checkApiKeyWarning() {
+            const warningBox = document.getElementById('api-warning-box');
+            if (getApiKey()) {
+                warningBox.classList.add('hidden');
+            } else {
+                warningBox.classList.remove('hidden');
+            }
+        }
+        // -------------------------
+
+        // --- 💾 앱 설정 (주제, 금지어) 로컬 저장소 연동 ---
         function loadSettingsData() {
             try {
                 const saved = localStorage.getItem('rssFilterSettings');
@@ -255,15 +308,16 @@
             renderAll();
         };
 
-        // --- 🛠️ 최신 모델인 gemini-2.5-flash 로 완벽 교체 ---
+        // --- 🛠️ AI 문서 생성 코드 (저장된 API 키 사용) ---
         window.generateAIArticle = async function(article) {
-            if (!window.apiKey) {
-                alert("API 키가 설정되지 않았습니다.");
-                return { content: "오류: API 키 누락.", image: null };
+            const currentApiKey = getApiKey();
+
+            if (!currentApiKey) {
+                alert("API 키가 설정되지 않았습니다.\n좌측 하단의 API Settings 창에 발급받은 키를 먼저 입력해주세요.");
+                return { content: "오류: API 키 누락. 사이드바 하단에서 키를 설정하세요.", image: null };
             }
 
-            // 모델명을 가장 최신 버전인 gemini-2.5-flash로 수정했습니다.
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${window.apiKey}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${currentApiKey}`;
             
             const promptText = `
                 주제: ${article.sourceTopic}
@@ -297,6 +351,11 @@
                     if (!response.ok) {
                         const errorInfo = await response.json();
                         lastErrorMessage = errorInfo.error?.message || "알 수 없는 API 통신 에러";
+                        
+                        // API Key 관련 에러일 경우 즉시 알림 후 중단
+                        if (response.status === 400 || response.status === 403) {
+                            throw new Error(`API 키가 유효하지 않거나 정지되었습니다.\n${lastErrorMessage}`);
+                        }
                         throw new Error(`API 오류: ${lastErrorMessage}`);
                     }
 
@@ -330,11 +389,13 @@
                 } catch (e) {
                     console.error("AI Generation Attempt", attempt + 1, "Failed:", e);
                     lastErrorMessage = e.message;
+                    // 키 오류면 재시도 없이 바로 에러 출력
+                    if (lastErrorMessage.includes('API 키')) break; 
                     await new Promise(r => setTimeout(r, 1500)); 
                 }
             }
             
-            alert(`기사를 생성할 수 없습니다.\n\n원인: ${lastErrorMessage}\n\n키 값이 만료되었거나 지원하지 않는 지역일 수 있습니다.`);
+            alert(`기사를 생성할 수 없습니다.\n\n원인: ${lastErrorMessage}`);
             return { content: `에러로 인해 문서를 생성할 수 없습니다.\n원인: ${lastErrorMessage}`, image: null };
         };
 
@@ -602,6 +663,13 @@
 
         window.onload = () => {
             loadSettingsData();
+            
+            // 기존에 저장된 API 키가 있으면 입력칸에 표시
+            const savedApiKey = getApiKey();
+            if (savedApiKey) {
+                document.getElementById('api-key-input').value = savedApiKey;
+            }
+            checkApiKeyWarning();
 
             const topicForm = document.getElementById('topic-form');
             topicForm.addEventListener('submit', (e) => {
@@ -634,3 +702,6 @@
     </script>
 </body>
 </html>
+
+
+```
