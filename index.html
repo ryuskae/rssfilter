@@ -5,9 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RSS Filter</title>
-    <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
-    <link rel="stylesheet" href="[https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css)">
-    <link href="[https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;500;700&display=swap](https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;500;700&display=swap)" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -132,10 +132,10 @@
             </div>
         </div>
 
-        <!-- 전자책 뷰어 -->
-        <div id="ebook-view" class="flex-1 flex-col items-center justify-center p-6 md:p-10 relative hidden bg-[#e8e5df] overflow-hidden">
+        <!-- 전자책 뷰어 (원래의 UI로 복구) -->
+        <div id="ebook-view" class="flex-1 flex-col items-center justify-center p-4 md:p-8 relative hidden bg-[#e8e5df]">
             
-            <div class="w-full max-w-[1000px] flex justify-between items-center mb-6 shrink-0">
+            <div class="absolute top-4 left-8 right-8 flex justify-between items-center z-10">
                 <button onclick="window.closeArticle()" class="flex items-center gap-2 px-4 py-2 bg-white/90 shadow-sm border border-slate-200 rounded text-sm font-medium text-slate-700 hover:bg-white transition">
                     <i class="fa-solid fa-arrow-left"></i> 목록으로
                 </button>
@@ -144,8 +144,8 @@
                 </div>
             </div>
 
-            <!-- 책 레이아웃 -->
-            <div class="relative w-full max-w-[1000px] flex-1 max-h-[80vh] min-h-[400px] bg-[#fdfcf8] rounded-sm shadow-2xl flex border border-slate-300">
+            <!-- 책 레이아웃 (원래의 비율과 배치) -->
+            <div class="relative w-full max-w-[1000px] h-[86vh] bg-[#fdfcf8] rounded-sm shadow-2xl flex border border-slate-300 overflow-hidden">
                 <div class="absolute left-1/2 top-0 bottom-0 w-12 -ml-6 book-spine z-10 pointer-events-none"></div>
                 <div class="absolute left-1/2 top-0 bottom-0 w-[1px] bg-black/10 z-10"></div>
 
@@ -155,6 +155,7 @@
                 <!-- 오른쪽 페이지 -->
                 <div class="flex-1 px-10 py-12 md:px-14 md:py-14 relative overflow-hidden bg-[#fdfcf8] page-transition flex flex-col" id="page-right"></div>
 
+                <!-- 화살표 버튼 -->
                 <button id="prev-btn" onclick="window.prevPage()" class="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center rounded-full bg-white border border-slate-200 shadow-md text-slate-600 hover:text-slate-900 transition-all z-20 disabled:opacity-0 disabled:cursor-default">
                     <i class="fa-solid fa-chevron-left"></i>
                 </button>
@@ -167,7 +168,7 @@
 
     <script>
         // ==========================================
-        // 제공해주신 API 키
+        // 제공해주신 API 키 (그대로 적용)
         // ==========================================
         window.apiKey = "AIzaSyCtw5K-N7DdI-MaQJ9RFC9P1W2pZ9dq53Y"; 
         // ==========================================
@@ -264,7 +265,6 @@
                 return { content: "오류: API 키 누락.", image: null };
             }
 
-            // 모델을 최신 1.5 flash 버전으로 명시
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${window.apiKey}`;
             
             const promptText = `
@@ -282,7 +282,6 @@
                 }
             `;
 
-            // 에러를 유발할 수 있는 strict schema 설정을 제거하고 프롬프트에 의존함
             const payload = {
                 contents: [{ parts: [{ text: promptText }] }]
             };
@@ -328,11 +327,10 @@
                 } catch (e) {
                     console.error("AI Generation Attempt", attempt + 1, "Failed:", e);
                     lastErrorMessage = e.message;
-                    await new Promise(r => setTimeout(r, 1500)); // 재시도 전 1.5초 대기
+                    await new Promise(r => setTimeout(r, 1500)); 
                 }
             }
             
-            // 3번 실패했을 경우 상세 에러 내용을 알림으로 출력
             alert(`기사를 생성할 수 없습니다.\n상세 원인:\n${lastErrorMessage}\n\n키 값이 만료되었거나, 일일 할당량이 초과되었을 수 있습니다.`);
             return { content: `에러로 인해 문서를 생성할 수 없습니다.\n에러 내용: ${lastErrorMessage}`, image: null };
         };
@@ -585,7 +583,7 @@
 
         window.removeBannedWord = function(word) {
             window.state.bannedWords = window.state.bannedWords.filter(w => w !== word);
-            saveSettingsData(); // 저장
+            saveSettingsData(); 
             renderAll();
         };
 
@@ -600,7 +598,6 @@
         }
 
         window.onload = () => {
-            // 로컬 스토리지에서 데이터 불러오기
             loadSettingsData();
 
             const topicForm = document.getElementById('topic-form');
@@ -611,7 +608,7 @@
                 if (topic && !window.state.topics.includes(topic)) {
                     window.state.topics.push(topic);
                     input.value = '';
-                    saveSettingsData(); // 저장
+                    saveSettingsData(); 
                     renderAll(); 
                 }
             });
@@ -624,7 +621,7 @@
                 if (word && !window.state.bannedWords.includes(word)) {
                     window.state.bannedWords.push(word);
                     input.value = '';
-                    saveSettingsData(); // 저장
+                    saveSettingsData(); 
                     renderAll();
                 }
             });
@@ -634,6 +631,3 @@
     </script>
 </body>
 </html>
-
-
-
