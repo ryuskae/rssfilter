@@ -30,8 +30,8 @@
         }
 
         .ebook-content p {
-            margin-bottom: 1.2em;
-            text-indent: 1em;
+            margin-bottom: 1.2em; /* 문단 간격 */
+            text-indent: 1em; /* 실제 책과 같은 들여쓰기 */
         }
 
         .page-transition {
@@ -132,7 +132,7 @@
             </div>
         </div>
 
-        <!-- 전자책 뷰어 (원래의 UI로 복구) -->
+        <!-- 전자책 뷰어 -->
         <div id="ebook-view" class="flex-1 flex-col items-center justify-center p-4 md:p-8 relative hidden bg-[#e8e5df]">
             
             <div class="absolute top-4 left-8 right-8 flex justify-between items-center z-10">
@@ -144,7 +144,7 @@
                 </div>
             </div>
 
-            <!-- 책 레이아웃 (원래의 비율과 배치) -->
+            <!-- 책 레이아웃 -->
             <div class="relative w-full max-w-[1000px] h-[86vh] bg-[#fdfcf8] rounded-sm shadow-2xl flex border border-slate-300 overflow-hidden">
                 <div class="absolute left-1/2 top-0 bottom-0 w-12 -ml-6 book-spine z-10 pointer-events-none"></div>
                 <div class="absolute left-1/2 top-0 bottom-0 w-[1px] bg-black/10 z-10"></div>
@@ -168,7 +168,7 @@
 
     <script>
         // ==========================================
-        // 제공해주신 API 키 (그대로 적용)
+        // 제공해주신 API 키
         // ==========================================
         window.apiKey = "AIzaSyCtw5K-N7DdI-MaQJ9RFC9P1W2pZ9dq53Y"; 
         // ==========================================
@@ -183,7 +183,7 @@
             currentPage: 0
         };
 
-        // --- 💾 브라우저 로컬 저장소 연동 (GitHub Pages 호환) ---
+        // --- 💾 브라우저 로컬 저장소 연동 ---
         function loadSettingsData() {
             try {
                 const saved = localStorage.getItem('rssFilterSettings');
@@ -212,7 +212,6 @@
                 console.warn("데이터 저장 중 오류 발생", e);
             }
         }
-        // --------------------------------------------------
 
         window.fetchRSSNews = async function(topic) {
             try {
@@ -258,14 +257,15 @@
             renderAll();
         };
 
-        // --- 🛠️ 에러 원천 차단 및 분석 강화된 AI 생성 코드 ---
+        // --- 🛠️ AI 모델 버전을 'gemini-1.5-flash-latest'로 수정 ---
         window.generateAIArticle = async function(article) {
             if (!window.apiKey) {
                 alert("API 키가 설정되지 않았습니다.");
                 return { content: "오류: API 키 누락.", image: null };
             }
 
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${window.apiKey}`;
+            // ⭐ 에러 원인 해결: -latest 모델 지정
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${window.apiKey}`;
             
             const promptText = `
                 주제: ${article.sourceTopic}
@@ -307,7 +307,6 @@
                     if (data.candidates && data.candidates[0].content.parts[0].text) {
                         let rawText = data.candidates[0].content.parts[0].text;
                         
-                        // 가장 안전한 JSON 추출기: 첫 번째 '{' 부터 마지막 '}' 까지 잘라냄
                         const jsonStart = rawText.indexOf('{');
                         const jsonEnd = rawText.lastIndexOf('}');
                         
@@ -331,7 +330,7 @@
                 }
             }
             
-            alert(`기사를 생성할 수 없습니다.\n상세 원인:\n${lastErrorMessage}\n\n키 값이 만료되었거나, 일일 할당량이 초과되었을 수 있습니다.`);
+            alert(`기사를 생성할 수 없습니다.\n상세 원인:\n${lastErrorMessage}`);
             return { content: `에러로 인해 문서를 생성할 수 없습니다.\n에러 내용: ${lastErrorMessage}`, image: null };
         };
 
@@ -364,9 +363,9 @@
                     }
                 }
 
-                const isActive = window.state.activeTopic === topic && !window.state.selectedArticle;
+                const isActive = window.state.activeTopic === window.state.selectedArticle;
                 const baseClasses = "w-full text-left px-3 py-2 rounded flex items-center justify-between transition-colors text-sm font-medium";
-                const activeClasses = isActive ? "bg-slate-100 text-slate-800 font-bold" : "text-slate-600 hover:bg-slate-50";
+                const activeClasses = window.state.activeTopic === topic && !window.state.selectedArticle ? "bg-slate-100 text-slate-800 font-bold" : "text-slate-600 hover:bg-slate-50";
                 
                 const li = document.createElement('li');
                 li.innerHTML = `
@@ -511,7 +510,7 @@
                 pages.push(`<div class="h-full flex flex-col justify-center items-center text-slate-300 italic ebook-font text-sm">The End</div>`);
             } else {
                 pages.push(`<div class="h-full flex flex-col justify-center items-center text-slate-300 italic ebook-font text-sm">The End</div>`);
-                pages.push(`<div class="h-full"></div>`);
+                pages.push(`<div class="h-full"></div>`); // 빈 페이지
             }
 
             return pages;
