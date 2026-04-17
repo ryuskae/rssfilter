@@ -18,7 +18,6 @@
             font-family: 'Noto Serif KR', serif; 
         }
         
-        /* 표준 전자책 스타일 본문 */
         .ebook-content {
             text-align: justify;
             word-break: keep-all;
@@ -30,15 +29,14 @@
         }
 
         .ebook-content p {
-            margin-bottom: 1.2em; /* 문단 간격 */
-            text-indent: 1em; /* 실제 책과 같은 들여쓰기 */
+            margin-bottom: 1.2em;
+            text-indent: 1em;
         }
 
         .page-transition {
             transition: opacity 0.2s ease-in-out;
         }
 
-        /* 책 가운데 제본선 음영 */
         .book-spine {
             background: linear-gradient(to right, 
                 rgba(255,255,255,0) 0%, 
@@ -133,10 +131,12 @@
         </div>
 
         <!-- 전자책 뷰어 -->
-        <div id="ebook-view" class="flex-1 flex-col items-center justify-center p-4 md:p-8 relative hidden bg-[#e8e5df]">
+        <!-- p-6 md:p-10 여백을 주고 내부 flex로 정렬하여 상하좌우 마진 확보 -->
+        <div id="ebook-view" class="flex-1 flex-col items-center justify-center p-6 md:p-10 relative hidden bg-[#e8e5df] overflow-hidden">
             
-            <div class="absolute top-4 left-8 right-8 flex justify-between items-center z-10">
-                <button onclick="closeArticle()" class="flex items-center gap-2 px-4 py-2 bg-white/90 shadow-sm border border-slate-200 rounded text-sm font-medium text-slate-700 hover:bg-white transition">
+            <!-- 툴바: 책 위에 배치하여 겹치지 않게 분리 -->
+            <div class="w-full max-w-[1000px] flex justify-between items-center mb-6 shrink-0">
+                <button onclick="window.closeArticle()" class="flex items-center gap-2 px-4 py-2 bg-white/90 shadow-sm border border-slate-200 rounded text-sm font-medium text-slate-700 hover:bg-white transition">
                     <i class="fa-solid fa-arrow-left"></i> 목록으로
                 </button>
                 <div id="page-indicator" class="px-4 py-2 bg-white/90 shadow-sm border border-slate-200 rounded text-sm font-medium text-slate-500 tracking-widest">
@@ -144,25 +144,22 @@
                 </div>
             </div>
 
-            <!-- 책 레이아웃 -->
-            <div class="relative w-full max-w-[1000px] h-[86vh] bg-[#fdfcf8] rounded-sm shadow-2xl flex border border-slate-300 overflow-hidden">
+            <!-- 책 레이아웃: 화면 높이에 따라 꽉 차되 최대 80vh를 넘지 않음 -->
+            <div class="relative w-full max-w-[1000px] flex-1 max-h-[80vh] min-h-[400px] bg-[#fdfcf8] rounded-sm shadow-2xl flex border border-slate-300">
                 <div class="absolute left-1/2 top-0 bottom-0 w-12 -ml-6 book-spine z-10 pointer-events-none"></div>
                 <div class="absolute left-1/2 top-0 bottom-0 w-[1px] bg-black/10 z-10"></div>
 
                 <!-- 왼쪽 페이지 -->
-                <div class="flex-1 px-10 py-12 md:px-14 md:py-14 relative overflow-hidden bg-[#fdfcf8] page-transition flex flex-col" id="page-left">
-                    <!-- 내용 -->
-                </div>
+                <div class="flex-1 px-10 py-12 md:px-14 md:py-14 relative overflow-hidden bg-[#fdfcf8] page-transition flex flex-col" id="page-left"></div>
 
                 <!-- 오른쪽 페이지 -->
-                <div class="flex-1 px-10 py-12 md:px-14 md:py-14 relative overflow-hidden bg-[#fdfcf8] page-transition flex flex-col" id="page-right">
-                    <!-- 내용 -->
-                </div>
+                <div class="flex-1 px-10 py-12 md:px-14 md:py-14 relative overflow-hidden bg-[#fdfcf8] page-transition flex flex-col" id="page-right"></div>
 
-                <button id="prev-btn" onclick="prevPage()" class="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center rounded-full bg-white border border-slate-200 shadow-md text-slate-600 hover:text-slate-900 transition-all z-20 disabled:opacity-0 disabled:cursor-default">
+                <!-- 화살표 네비게이션 -->
+                <button id="prev-btn" onclick="window.prevPage()" class="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center rounded-full bg-white border border-slate-200 shadow-md text-slate-600 hover:text-slate-900 transition-all z-20 disabled:opacity-0 disabled:cursor-default">
                     <i class="fa-solid fa-chevron-left"></i>
                 </button>
-                <button id="next-btn" onclick="nextPage()" class="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center rounded-full bg-white border border-slate-200 shadow-md text-slate-600 hover:text-slate-900 transition-all z-20 disabled:opacity-0 disabled:cursor-default">
+                <button id="next-btn" onclick="window.nextPage()" class="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center rounded-full bg-white border border-slate-200 shadow-md text-slate-600 hover:text-slate-900 transition-all z-20 disabled:opacity-0 disabled:cursor-default">
                     <i class="fa-solid fa-chevron-right"></i>
                 </button>
             </div>
@@ -170,13 +167,10 @@
     </div>
 
     <script>
-        // ==========================================
-        // 제공해주신 API 키를 직접 삽입했습니다.
-        // ==========================================
-        const apiKey = "AIzaSyCtw5K-N7DdI-MaQJ9RFC9P1W2pZ9dq53Y"; 
-        // ==========================================
+        // 제공해주신 API 키 (그대로 적용)
+        window.apiKey = "AIzaSyCtw5K-N7DdI-MaQJ9RFC9P1W2pZ9dq53Y"; 
 
-        const state = {
+        window.state = {
             topics: ['인공지능', '한국 경제', '우주 과학'],
             activeTopic: null,
             bannedWords: ['광고', '단독', '충격', '속보', '특가'],
@@ -186,7 +180,7 @@
             currentPage: 0
         };
 
-        async function fetchRSSNews(topic) {
+        window.fetchRSSNews = async function(topic) {
             try {
                 const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(topic)}&hl=ko&gl=KR&ceid=KR:ko`;
                 const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`;
@@ -210,33 +204,29 @@
                 console.error("RSS Error:", error);
                 return [];
             }
-        }
+        };
 
-        async function loadTopicData(topic) {
-            state.activeTopic = topic;
-            closeArticle();
+        window.loadTopicData = async function(topic) {
+            window.state.activeTopic = topic;
+            window.closeArticle();
             
             document.getElementById('welcome-view').classList.add('hidden');
             document.getElementById('feed-view').classList.remove('hidden');
             document.getElementById('feed-view').classList.add('flex');
             
-            if (!state.articlesData[topic]) {
+            if (!window.state.articlesData[topic]) {
                 showLoading(true, "RSS 피드 업데이트 중...");
-                const newArticles = await fetchRSSNews(topic);
-                state.articlesData[topic] = newArticles;
+                const newArticles = await window.fetchRSSNews(topic);
+                window.state.articlesData[topic] = newArticles;
                 showLoading(false);
             }
             
             renderAll();
-        }
+        };
 
-        async function generateAIArticle(article) {
-            if (!apiKey) {
-                alert("API 키가 설정되지 않았습니다.");
-                return { content: "오류: API 키 누락.", image: null };
-            }
-
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+        // 에러 방어 코드가 강화된 AI 생성 함수
+        window.generateAIArticle = async function(article) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${window.apiKey}`;
             
             const promptText = `
                 주제: ${article.sourceTopic}
@@ -244,68 +234,73 @@
                 
                 위 제목과 관련된 상세한 뉴스 기사를 작성해주세요. 
                 전자책 뷰어에 들어갈 내용이므로, 짧은 요약이 아니라 배경, 현황, 세부 내용, 전망 등을 포함하여 **최소 1500자 이상의 매우 길고 논리적인 글**로 작성해야 합니다.
-                문단(paragraph) 구분을 명확히 해주세요.
+                문단 구분을 명확히 해주세요.
                 
                 응답은 반드시 아래 JSON 스키마를 따르세요. 
-                image 속성에는 이 기사와 어울리는 고해상도 사진 URL을 하나 찾아 넣어주세요 (구글 검색 활용, 없으면 null).
+                중요: 마크다운 코드블록(\`\`\`json 등)을 절대 사용하지 말고, 순수한 JSON 문자열만 출력하세요.
+                image 속성에는 이 기사와 어울리는 고해상도 사진 URL을 하나 찾아 넣어주세요 (없으면 null).
             `;
 
             const payload = {
                 contents: [{ parts: [{ text: promptText }] }],
                 generationConfig: {
-                    responseMimeType: "application/json",
+                    responseMimeType: "application/json"
                 }
             };
 
-            for (let attempt = 0; attempt < 3; attempt++) {
-                try {
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-                    
-                    if (!response.ok) {
-                        console.error("API 응답 에러:", response.status, response.statusText);
-                        throw new Error("API 연동 오류");
-                    }
-
-                    const data = await response.json();
-                    
-                    if (data.candidates && data.candidates[0].content.parts[0].text) {
-                        const result = JSON.parse(data.candidates[0].content.parts[0].text);
-                        return {
-                            content: result.content || result.text || result.article || "내용을 불러오지 못했습니다.",
-                            image: result.image || null
-                        };
-                    }
-                } catch (e) {
-                    console.error("AI Generation Error:", e);
-                    await new Promise(r => setTimeout(r, 1500)); 
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) {
+                    const errorInfo = await response.json();
+                    alert(`API 연동 에러가 발생했습니다.\n이유: ${errorInfo.error?.message}`);
+                    return { content: `에러 발생: ${errorInfo.error?.message}`, image: null };
                 }
+
+                const data = await response.json();
+                
+                if (data.candidates && data.candidates[0].content.parts[0].text) {
+                    // 마크다운 코드블록 찌꺼기 완벽 제거
+                    let rawText = data.candidates[0].content.parts[0].text;
+                    rawText = rawText.replace(/^```json\n?/g, '').replace(/```\n?$/g, '').trim();
+                    const result = JSON.parse(rawText);
+                    
+                    return {
+                        content: result.content || result.text || result.article || "내용을 불러오지 못했습니다.",
+                        image: result.image || null
+                    };
+                }
+            } catch (e) {
+                console.error("AI Generation Error:", e);
+                alert(`AI 본문 작성에 실패했습니다. (API 키 오류 또는 할당량 초과)`);
             }
-            return { content: "AI가 본문을 생성하는 데 실패했습니다. API 키 문제이거나 할당량 초과일 수 있습니다.", image: null };
-        }
+            return { content: "AI가 본문을 생성하는 데 실패했습니다.", image: null };
+        };
 
         function getFilteredArticles(topic) {
-            const raw = state.articlesData[topic] || [];
-            const visible = raw.filter(a => !state.bannedWords.some(w => a.title.includes(w)));
+            const raw = window.state.articlesData[topic] || [];
+            const visible = raw.filter(a => !window.state.bannedWords.some(w => a.title.includes(w)));
             return { visible, blockedCount: raw.length - visible.length };
         }
 
         function renderAll() {
             renderSidebar();
-            if (state.activeTopic && !state.selectedArticle) {
+            if (window.state.activeTopic && !window.state.selectedArticle) {
                 renderFeed();
             }
         }
+        window.renderAll = renderAll;
 
         function renderSidebar() {
             const topicList = document.getElementById('topic-list');
             topicList.innerHTML = '';
             
-            state.topics.forEach(topic => {
-                const isLoaded = !!state.articlesData[topic];
+            window.state.topics.forEach(topic => {
+                const isLoaded = !!window.state.articlesData[topic];
                 let blockedBadge = '';
                 
                 if (isLoaded) {
@@ -315,13 +310,13 @@
                     }
                 }
 
-                const isActive = state.activeTopic === topic && !state.selectedArticle;
+                const isActive = window.state.activeTopic === topic && !window.state.selectedArticle;
                 const baseClasses = "w-full text-left px-3 py-2 rounded flex items-center justify-between transition-colors text-sm font-medium";
                 const activeClasses = isActive ? "bg-slate-100 text-slate-800 font-bold" : "text-slate-600 hover:bg-slate-50";
                 
                 const li = document.createElement('li');
                 li.innerHTML = `
-                    <button onclick="loadTopicData('${topic}')" class="${baseClasses} ${activeClasses}">
+                    <button onclick="window.loadTopicData('${topic}')" class="${baseClasses} ${activeClasses}">
                         <span class="truncate">${topic}</span>
                         ${blockedBadge}
                     </button>
@@ -332,12 +327,12 @@
             const bannedList = document.getElementById('banned-list');
             bannedList.innerHTML = '';
             
-            state.bannedWords.forEach(word => {
+            window.state.bannedWords.forEach(word => {
                 const span = document.createElement('span');
                 span.className = "inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-slate-100 text-slate-500 border border-slate-200";
                 span.innerHTML = `
                     ${word}
-                    <button onclick="removeBannedWord('${word}')" class="text-slate-400 hover:text-red-400 transition-colors focus:outline-none">
+                    <button onclick="window.removeBannedWord('${word}')" class="text-slate-400 hover:text-red-400 transition-colors focus:outline-none">
                         <i class="fa-solid fa-xmark text-[10px]"></i>
                     </button>
                 `;
@@ -346,9 +341,9 @@
         }
 
         function renderFeed() {
-            const { visible, blockedCount } = getFilteredArticles(state.activeTopic);
+            const { visible, blockedCount } = getFilteredArticles(window.state.activeTopic);
             
-            document.getElementById('current-topic-title').innerText = state.activeTopic;
+            document.getElementById('current-topic-title').innerText = window.state.activeTopic;
             
             let statsHtml = `${visible.length} articles found`;
             if (blockedCount > 0) {
@@ -371,7 +366,7 @@
             visible.forEach(article => {
                 const item = document.createElement('div');
                 item.className = "bg-white border border-slate-200 p-5 hover:shadow-md cursor-pointer transition-all flex flex-col group rounded-sm";
-                item.onclick = () => openArticle(article.id);
+                item.onclick = () => window.openArticle(article.id);
                 
                 const dateObj = new Date(article.date);
                 const dateStr = isNaN(dateObj) ? '' : dateObj.toLocaleDateString();
@@ -391,30 +386,30 @@
             });
         }
 
-        async function openArticle(articleId) {
-            const raw = state.articlesData[state.activeTopic] || [];
+        window.openArticle = async function(articleId) {
+            const raw = window.state.articlesData[window.state.activeTopic] || [];
             const articleInfo = raw.find(a => a.id === articleId);
             
             if (!articleInfo) return;
-            state.selectedArticle = articleInfo;
+            window.state.selectedArticle = articleInfo;
 
             document.getElementById('welcome-view').classList.add('hidden');
             document.getElementById('feed-view').classList.add('hidden');
             document.getElementById('feed-view').classList.remove('flex');
             
-            if (!state.aiArticlesCache[articleId]) {
+            if (!window.state.aiArticlesCache[articleId]) {
                 showLoading(true, "AI가 기사 본문을 작성 중입니다...");
-                const aiResult = await generateAIArticle(articleInfo);
-                state.aiArticlesCache[articleId] = createBookPages(articleInfo, aiResult);
+                const aiResult = await window.generateAIArticle(articleInfo);
+                window.state.aiArticlesCache[articleId] = createBookPages(articleInfo, aiResult);
                 showLoading(false);
             }
 
             document.getElementById('ebook-view').classList.remove('hidden');
             document.getElementById('ebook-view').classList.add('flex');
 
-            state.currentPage = 0;
+            window.state.currentPage = 0;
             renderBookPage();
-        }
+        };
 
         function createBookPages(articleInfo, aiResult) {
             const pages = [];
@@ -462,14 +457,14 @@
                 pages.push(`<div class="h-full flex flex-col justify-center items-center text-slate-300 italic ebook-font text-sm">The End</div>`);
             } else {
                 pages.push(`<div class="h-full flex flex-col justify-center items-center text-slate-300 italic ebook-font text-sm">The End</div>`);
-                pages.push(`<div class="h-full"></div>`); // 빈 페이지
+                pages.push(`<div class="h-full"></div>`);
             }
 
             return pages;
         }
 
         function renderBookPage() {
-            const cache = state.aiArticlesCache[state.selectedArticle.id];
+            const cache = window.state.aiArticlesCache[window.state.selectedArticle.id];
             const pages = cache;
 
             const leftPage = document.getElementById('page-left');
@@ -479,49 +474,49 @@
             rightPage.style.opacity = 0;
 
             setTimeout(() => {
-                leftPage.innerHTML = pages[state.currentPage] || '';
-                rightPage.innerHTML = pages[state.currentPage + 1] || '';
+                leftPage.innerHTML = pages[window.state.currentPage] || '';
+                rightPage.innerHTML = pages[window.state.currentPage + 1] || '';
 
-                if (pages[state.currentPage] && !pages[state.currentPage].includes('justify-center')) {
-                    leftPage.innerHTML += `<div class="absolute bottom-6 left-0 right-0 text-center text-[10px] text-slate-400 font-sans tracking-widest">${state.currentPage + 1}</div>`;
+                if (pages[window.state.currentPage] && !pages[window.state.currentPage].includes('justify-center')) {
+                    leftPage.innerHTML += `<div class="absolute bottom-6 left-0 right-0 text-center text-[10px] text-slate-400 font-sans tracking-widest">${window.state.currentPage + 1}</div>`;
                 }
-                if (pages[state.currentPage + 1] && !pages[state.currentPage + 1].includes('justify-center') && !pages[state.currentPage + 1].includes('빈 페이지') && pages[state.currentPage+1].trim() !== '<div class="h-full"></div>') {
-                    rightPage.innerHTML += `<div class="absolute bottom-6 left-0 right-0 text-center text-[10px] text-slate-400 font-sans tracking-widest">${state.currentPage + 2}</div>`;
+                if (pages[window.state.currentPage + 1] && !pages[window.state.currentPage + 1].includes('justify-center') && !pages[window.state.currentPage + 1].includes('빈 페이지') && pages[window.state.currentPage+1].trim() !== '<div class="h-full"></div>') {
+                    rightPage.innerHTML += `<div class="absolute bottom-6 left-0 right-0 text-center text-[10px] text-slate-400 font-sans tracking-widest">${window.state.currentPage + 2}</div>`;
                 }
 
                 const totalFolds = Math.ceil(pages.length / 2);
-                const currentFold = Math.floor(state.currentPage / 2) + 1;
+                const currentFold = Math.floor(window.state.currentPage / 2) + 1;
                 document.getElementById('page-indicator').innerText = `${currentFold} / ${totalFolds}`;
 
                 const prevBtn = document.getElementById('prev-btn');
                 const nextBtn = document.getElementById('next-btn');
 
-                prevBtn.disabled = state.currentPage === 0;
-                nextBtn.disabled = state.currentPage >= pages.length - 2;
+                prevBtn.disabled = window.state.currentPage === 0;
+                nextBtn.disabled = window.state.currentPage >= pages.length - 2;
 
                 leftPage.style.opacity = 1;
                 rightPage.style.opacity = 1;
             }, 150);
         }
 
-        function prevPage() {
-            if (state.currentPage > 0) {
-                state.currentPage -= 2;
+        window.prevPage = function() {
+            if (window.state.currentPage > 0) {
+                window.state.currentPage -= 2;
                 renderBookPage();
             }
-        }
+        };
 
-        function nextPage() {
-            const cache = state.aiArticlesCache[state.selectedArticle.id];
-            if (state.currentPage < cache.length - 2) {
-                state.currentPage += 2;
+        window.nextPage = function() {
+            const cache = window.state.aiArticlesCache[window.state.selectedArticle.id];
+            if (window.state.currentPage < cache.length - 2) {
+                window.state.currentPage += 2;
                 renderBookPage();
             }
-        }
+        };
 
-        function closeArticle() {
-            state.selectedArticle = null;
-            if (state.activeTopic) {
+        window.closeArticle = function() {
+            window.state.selectedArticle = null;
+            if (window.state.activeTopic) {
                 document.getElementById('feed-view').classList.remove('hidden');
                 document.getElementById('feed-view').classList.add('flex');
             } else {
@@ -530,38 +525,12 @@
             document.getElementById('ebook-view').classList.add('hidden');
             document.getElementById('ebook-view').classList.remove('flex');
             renderSidebar();
-        }
+        };
 
-        function initEvents() {
-            const topicForm = document.getElementById('topic-form');
-            topicForm.addEventListener('submit', (e) => {
-                e.preventDefault(); 
-                const input = document.getElementById('new-topic-input');
-                const topic = input.value.trim();
-                if (topic && !state.topics.includes(topic)) {
-                    state.topics.push(topic);
-                    input.value = '';
-                    renderAll(); 
-                }
-            });
-
-            const bannedForm = document.getElementById('banned-form');
-            bannedForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                const input = document.getElementById('new-banned-input');
-                const word = input.value.trim();
-                if (word && !state.bannedWords.includes(word)) {
-                    state.bannedWords.push(word);
-                    input.value = '';
-                    renderAll();
-                }
-            });
-        }
-
-        function removeBannedWord(word) {
-            state.bannedWords = state.bannedWords.filter(w => w !== word);
+        window.removeBannedWord = function(word) {
+            window.state.bannedWords = window.state.bannedWords.filter(w => w !== word);
             renderAll();
-        }
+        };
 
         function showLoading(show, text = "로딩 중...") {
             const overlay = document.getElementById('loading-overlay');
@@ -574,7 +543,30 @@
         }
 
         window.onload = () => {
-            initEvents();
+            const topicForm = document.getElementById('topic-form');
+            topicForm.addEventListener('submit', (e) => {
+                e.preventDefault(); 
+                const input = document.getElementById('new-topic-input');
+                const topic = input.value.trim();
+                if (topic && !window.state.topics.includes(topic)) {
+                    window.state.topics.push(topic);
+                    input.value = '';
+                    renderAll(); 
+                }
+            });
+
+            const bannedForm = document.getElementById('banned-form');
+            bannedForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const input = document.getElementById('new-banned-input');
+                const word = input.value.trim();
+                if (word && !window.state.bannedWords.includes(word)) {
+                    window.state.bannedWords.push(word);
+                    input.value = '';
+                    renderAll();
+                }
+            });
+
             renderSidebar();
         };
     </script>
