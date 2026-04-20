@@ -148,7 +148,7 @@
             </div>
         </div>
 
-        <!-- 4. 전자책 뷰어 -->
+        <!-- 4. 전자책 뷰어 (클래식 레이아웃) -->
         <div id="ebook-view" class="flex-1 flex-col items-center justify-center p-6 md:p-10 relative hidden bg-[#e8e5df]">
             
             <div class="w-full max-w-[1000px] flex justify-between items-center mb-6 shrink-0">
@@ -260,7 +260,7 @@
             } else {
                 document.getElementById('api-input-section').classList.remove('hidden');
                 document.getElementById('api-saved-section').classList.add('hidden');
-                if (warningBox) warningBox.classList.remove('hidden');
+                if (warningBox && !window.apiKey) warningBox.classList.remove('hidden');
             }
         }
 
@@ -305,59 +305,53 @@
             renderAll();
         };
 
-        // --- 🔥 서버 트래픽 초과를 해결하는 '다중 모델 우회' 로직 ---
+        // --- 🔥 가장 안정적인 단일 모델(2.5-flash)과 지수 백오프 적용 ---
         window.generateAIArticle = async function(article) {
             const currentApiKey = getApiKey();
             if (!currentApiKey) {
-                alert("API 키가 없습니다.\n좌측 하단에서 새로 발급받은 API 키를 입력해주세요.");
+                alert("API 키가 없습니다.\n좌측 하단에서 새로 발급받은 API 키를 먼저 입력해주세요.");
                 return null;
             }
 
+            // 고정 모델 사용
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${currentApiKey}`;
+            
             const promptText = `
 주제: ${article.sourceTopic}
 기사 제목: ${article.title}
+
 위 기사 제목을 바탕으로 관련성 있는 상세 뉴스 기사를 작성해. 
-배경, 현황, 전망을 모두 포함하여 반드시 1500자 이상으로 길게 써. 문단(엔터키) 구분을 보기 좋게 해줘.
-중요: 마크다운(\x60\x60\x60 등) 쓰지 말고 오직 '줄글 형태의 텍스트'만 출력해.
+배경, 현황, 분석, 전망을 모두 포함하여 반드시 1500자 이상으로 길게 써야 해.
+문단(엔터키) 구분을 보기 좋게 해줘.
+
+중요 규칙:
+1. 마크다운 기호(\x60\x60\x60, *, # 등)는 절대 사용 금지.
+2. JSON이나 다른 코드 형식으로 출력하지 마. 오직 "줄글 형태의 기사 본문 텍스트"만 출력해.
 `;
-            const payload = { contents: [{ parts: [{ text: promptText }] }] };
-
-            // 💡 하나의 모델이 혼잡할 때 우회 접속할 예비 모델 리스트
-            const fallbackModels = [
-                "gemini-1.5-flash",    // 가장 빠르고 일반적인 모델
-                "gemini-1.5-flash-8b", // 트래픽이 적고 가벼운 최신 예비 모델
-                "gemini-1.5-pro"       // 고성능 무거운 모델 (최후의 수단)
-            ];
-
             let lastError = "";
+            const delays = [1000, 2000, 4000, 8000, 16000]; // 1초, 2초, 4초, 8초, 16초 대기
 
-            for (let i = 0; i < fallbackModels.length; i++) {
-                const modelName = fallbackModels[i];
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${currentApiKey}`;
-
-                // 상태 표시 업데이트
-                if (i > 0) {
-                    document.getElementById('loading-text').innerText = `서버 혼잡! 예비 모델(${modelName})로 우회 중...`;
+            for (let attempt = 0; attempt < 5; attempt++) {
+                if (attempt > 0) {
+                    document.getElementById('loading-text').innerText = `서버 혼잡! 재연결 중입니다... (${attempt}/5)`;
                 }
 
                 try {
                     const response = await fetch(url, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
+                        body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
                     });
                     
                     if (!response.ok) {
                         const errData = await response.json();
-                        lastError = errData.error?.message || `에러 (${response.status})`;
+                        lastError = errData.error?.message || `서버 통신 에러 (${response.status})`;
                         
-                        // 400, 403 오류는 키 자체가 문제이므로 즉시 포기
-                        if (response.status === 400 || response.status === 403) {
-                            alert(`API 키 오류입니다.\n(오류메시지: ${lastError})`);
+                        // 키 문제이거나 찾을 수 없는 모델일 경우 즉시 중단
+                        if (response.status === 400 || response.status === 403 || response.status === 404) {
+                            alert(`API 설정 오류입니다.\n(오류메시지: ${lastError})`);
                             return null;
                         }
-                        
-                        // 그 외(503 High Demand 등)는 에러를 던져서 다음 예비 모델로 넘어감
                         throw new Error(lastError);
                     }
 
@@ -370,19 +364,17 @@
                     }
                 } catch (e) {
                     lastError = e.message;
-                    // 다음 모델 접속 전 1초 대기
-                    if (i < fallbackModels.length - 1) {
-                        await new Promise(r => setTimeout(r, 1000));
+                    if (attempt < 4) {
+                        await new Promise(r => setTimeout(r, delays[attempt]));
                     }
                 }
             }
             
-            // 3가지 예비 모델이 모두 뻗었을 때만 에러 출력
-            alert(`현재 모든 AI 서버 접속량이 초과되었습니다.\n몇 분 뒤에 다시 시도해주세요.\n(사유: ${lastError})`);
+            alert(`현재 구글 AI 서버 접속량이 초과되었습니다.\n잠시 후 다시 시도해주세요.\n(사유: ${lastError})`);
             return null;
         };
 
-        // --- 화면 뷰 전환 ---
+        // --- 뷰 제어 ---
         function switchView(viewName) {
             ['welcome-view', 'feed-view', 'ebook-view', 'bookmarks-view'].forEach(id => {
                 document.getElementById(id).classList.add('hidden');
@@ -395,6 +387,7 @@
             if(viewName === 'bookmarks') document.getElementById('back-btn-text').innerText = "목차로 돌아가기";
         }
 
+        // --- 목록 렌더링 ---
         function getFilteredArticles(topic) {
             const raw = window.state.articlesData[topic] || [];
             const visible = raw.filter(a => !window.state.bannedWords.some(w => a.title.includes(w)));
@@ -520,7 +513,7 @@
         window.prevTOCPage = function() { if (window.state.tocPage > 0) { window.state.tocPage--; renderBookmarksTOC(); } };
         window.nextTOCPage = function() { if (window.state.tocPage < Math.ceil(window.state.bookmarks.length / window.state.tocItemsPerPage) - 1) { window.state.tocPage++; renderBookmarksTOC(); } };
 
-        // --- 📖 전자책 로직 (안정적인 클래식 페이지 분할) ---
+        // --- 📖 전자책 로직 (클래식 분할) ---
         window.openArticleFromFeed = async function(articleId) {
             const articleInfo = window.state.articlesData[window.state.activeTopic].find(a => a.id === articleId);
             if (!articleInfo) return;
@@ -528,8 +521,8 @@
             window.state.selectedArticle = articleInfo;
             window.state.previousView = 'feed';
             
-            document.getElementById('loading-text').innerText = "AI가 문서를 작성 중입니다...";
-            showLoading(true, "AI가 문서를 작성 중입니다...");
+            document.getElementById('loading-text').innerText = "AI가 기사를 작성 중입니다...";
+            showLoading(true, "AI가 기사를 작성 중입니다...");
             
             const plainTextContent = await window.generateAIArticle(articleInfo);
             showLoading(false);
@@ -588,7 +581,7 @@
             
             let currentContent = '';
             let currentLength = 0;
-            const MAX_CHARS_PER_PAGE = 550; // 페이지당 글자수 제한
+            const MAX_CHARS_PER_PAGE = 550; // 페이지당 적절한 글자수 제한
 
             paragraphs.forEach((p) => {
                 if (currentLength + p.length > MAX_CHARS_PER_PAGE && currentContent.length > 0) {
