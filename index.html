@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -126,7 +127,7 @@
             </p>
             <div id="api-warning-box" class="hidden bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded text-sm max-w-md w-full text-center">
                 <p class="font-bold mb-1"><i class="fa-solid fa-triangle-exclamation"></i> API 키가 없습니다.</p>
-                <p>좌측 하단 <b>API Settings</b>에 키를 입력해 주세요.</p>
+                <p>좌측 하단 <b>API Settings</b>에 새로 발급받은 키를 입력해 주세요.</p>
             </div>
         </div>
 
@@ -186,10 +187,10 @@
                 <div id="page-num-left" class="absolute bottom-5 left-0 w-1/2 text-center text-[10px] text-slate-400 font-sans tracking-widest z-10"></div>
                 <div id="page-num-right" class="absolute bottom-5 right-0 w-1/2 text-center text-[10px] text-slate-400 font-sans tracking-widest z-10"></div>
 
-                <!-- 뷰포트 (가로 스크롤 영역) -->
+                <!-- 뷰포트 -->
                 <div id="ebook-viewport" class="ebook-viewport px-10 py-12 md:px-14 md:py-14">
                     <div id="ebook-content-container" class="ebook-columns ebook-font">
-                        <!-- 내용이 여기에 들어감 -->
+                        <!-- 내용 -->
                     </div>
                 </div>
 
@@ -200,8 +201,8 @@
     </div>
 
     <script>
-        // API 키 설정
-        window.apiKey = "AIzaSyBjk8jGoKEV9nisbqP1PoJ7KUOVuTEp7fY"; 
+        // 코드를 공유할 때 API 키가 유출되지 않도록 기본값을 비워둡니다.
+        window.apiKey = ""; 
 
         window.state = {
             topics: ['인공지능', '한국 경제', '우주 과학'],
@@ -218,7 +219,7 @@
             tocItemsPerPage: 8
         };
 
-        // --- 로컬 데이터 저장/불러오기 ---
+        // --- 데이터 저장 ---
         function loadSettingsData() {
             try {
                 const saved = localStorage.getItem('rssFilterSettings');
@@ -247,12 +248,13 @@
             document.getElementById('bookmark-count-badge').innerText = window.state.bookmarks.length;
         }
 
-        // --- API 키 UI 업데이트 ---
+        // --- API 키 UI ---
         window.saveApiKey = function() {
             const keyInput = document.getElementById('api-key-input').value.trim();
             if (keyInput) {
                 localStorage.setItem('geminiApiKey', keyInput);
                 updateApiUI();
+                alert("API 키가 저장되었습니다!");
             }
         };
 
@@ -267,7 +269,7 @@
         }
 
         function updateApiUI() {
-            const hasKey = !!localStorage.getItem('geminiApiKey');
+            const hasKey = !!getApiKey();
             const warningBox = document.getElementById('api-warning-box');
             if (hasKey) {
                 document.getElementById('api-input-section').classList.add('hidden');
@@ -276,11 +278,11 @@
             } else {
                 document.getElementById('api-input-section').classList.remove('hidden');
                 document.getElementById('api-saved-section').classList.add('hidden');
-                if (warningBox && !window.apiKey) warningBox.classList.remove('hidden');
+                if (warningBox) warningBox.classList.remove('hidden');
             }
         }
 
-        // --- RSS & AI 통신 ---
+        // --- 통신 로직 ---
         window.fetchRSSNews = async function(topic) {
             try {
                 const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(topic)}&hl=ko&gl=KR&ceid=KR:ko`;
@@ -313,12 +315,19 @@
             renderAll();
         };
 
+        // 🔥 에러 상세 보고 기능 강화
         window.generateAIArticle = async function(article) {
             const currentApiKey = getApiKey();
-            if (!currentApiKey) return { content: "오류: API 키 누락.", image: null };
+            // 정지된 예전 키를 사용하려 할 경우 차단
+            if (!currentApiKey || currentApiKey === "AIzaSyBjk8jGoKEV9nisbqP1PoJ7KUOVuTEp7fY") {
+                alert("입력하신 API 키는 유효하지 않거나 정지되었습니다.\n새로운 API 키를 발급받아 'API Settings'에 입력해주세요.");
+                return { content: "오류: 유효한 API 키가 필요합니다.", image: null };
+            }
 
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${currentApiKey}`;
             const promptText = `주제: ${article.sourceTopic}\n기사 제목: ${article.title}\n위 제목의 상세 뉴스 기사를 작성하세요. 배경, 현황, 전망 포함 최소 1500자 이상. 문단 구분 필수. 응답은 JSON 형식으로 {"content": "본문 전체", "image": "관련 사진 URL"}`;
+
+            let lastError = "";
 
             for (let attempt = 0; attempt < 3; attempt++) {
                 try {
@@ -328,15 +337,16 @@
                         body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
                     });
                     
-                    if (!response.ok) throw new Error("API 통신 에러");
+                    if (!response.ok) {
+                        const errData = await response.json();
+                        lastError = errData.error?.message || `서버 에러 (${response.status})`;
+                        throw new Error(lastError);
+                    }
 
                     const data = await response.json();
                     if (data.candidates && data.candidates[0].content.parts[0].text) {
                         let rawText = data.candidates[0].content.parts[0].text;
-                        
-                        // 화면 깨짐을 방지하는 정규식 추출 로직 (백틱 제거)
                         rawText = rawText.replace(new RegExp('`{3}(json)?', 'g'), '').trim();
-                        
                         try {
                             const jsonStart = rawText.indexOf('{');
                             const jsonEnd = rawText.lastIndexOf('}');
@@ -346,12 +356,21 @@
                             return { content: rawText, image: null };
                         }
                     }
-                } catch (e) { await new Promise(r => setTimeout(r, 1500)); }
+                } catch (e) {
+                    lastError = e.message;
+                    // 키 오류(정지 등)면 재시도 없이 중단
+                    if (lastError.includes("API key not valid") || lastError.includes("API key not found") || lastError.includes("exceeded")) {
+                        break;
+                    }
+                    await new Promise(r => setTimeout(r, 1500)); 
+                }
             }
-            return { content: `에러: 문서를 생성할 수 없습니다. API 키를 확인해주세요.`, image: null };
+            
+            alert(`API 오류가 발생했습니다.\n\n상세 원인: ${lastError}\n\n1. API 키가 유효한지 확인하세요.\n2. 브라우저 확장프로그램(광고차단 등)이 API 통신을 막고 있는지 확인하세요.`);
+            return { content: `에러: 문서를 생성할 수 없습니다.\n원인: ${lastError}`, image: null };
         };
 
-        // --- 화면 뷰 전환 ---
+        // --- 뷰 전환 ---
         function switchView(viewName) {
             ['welcome-view', 'feed-view', 'ebook-view', 'bookmarks-view'].forEach(id => {
                 document.getElementById(id).classList.add('hidden');
@@ -364,7 +383,6 @@
             if(viewName === 'bookmarks') document.getElementById('back-btn-text').innerText = "목차로 돌아가기";
         }
 
-        // --- 렌더링 로직 ---
         function getFilteredArticles(topic) {
             const raw = window.state.articlesData[topic] || [];
             const visible = raw.filter(a => !window.state.bannedWords.some(w => a.title.includes(w)));
@@ -490,7 +508,7 @@
         window.prevTOCPage = function() { if (window.state.tocPage > 0) { window.state.tocPage--; renderBookmarksTOC(); } };
         window.nextTOCPage = function() { if (window.state.tocPage < Math.ceil(window.state.bookmarks.length / window.state.tocItemsPerPage) - 1) { window.state.tocPage++; renderBookmarksTOC(); } };
 
-        // --- 📖 전자책 로직 (CSS 다단) ---
+        // --- 📖 전자책 로직 ---
         window.openArticleFromFeed = async function(articleId) {
             const articleInfo = window.state.articlesData[window.state.activeTopic].find(a => a.id === articleId);
             if (!articleInfo) return;
@@ -534,7 +552,7 @@
             setTimeout(calculatePages, 100);
         }
 
-        // 🔥 스크롤 페이징 계산 로직
+        // 🔥 스크롤 계산 로직
         function calculatePages() {
             const viewport = document.getElementById('ebook-viewport');
             const container = document.getElementById('ebook-content-container');
